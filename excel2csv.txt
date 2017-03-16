@@ -1,0 +1,44 @@
+Sub SaveToCSVs()
+    Dim fDir As String
+    Dim wB As Workbook
+    Dim wS As Worksheet
+    Dim fPath As String
+    Dim sPath As String
+    fPath = "C:\Users\yDDyl\Downloads\MarathonRecordAll\1-60 - Copy\"
+    sPath = "C:\Users\yDDyl\Downloads\MarathonRecordAll\csv60\"
+    fDir = Dir(fPath)
+    Do While (fDir <> "")
+        If Right(fDir, 4) = ".xls" Or Right(fDir, 5) = ".xlsx" Then
+            On Error Resume Next
+            Set wB = Workbooks.Open(fPath & fDir)
+            'MsgBox (wB.Name)
+            For Each wS In wB.Sheets
+                wS.SaveAs sPath & wB.Name & ".csv", xlCSV
+            Next wS
+            wB.Close False
+            Set wB = Nothing
+        End If
+        fDir = Dir
+        On Error GoTo 0
+    Loop
+End Sub
+
+
+Sub CheckTitle()
+    Dim aaa() As Variant
+    Dim c As Integer
+    aaa() = Array("排名", "参赛号", "姓名", "性别", "类别", "证件类型", "证件号", "出生年月（格式2010/01/01）", "国家", "城市", "组别", "5公里", "10公里", "15公里", "20公里", "半程21.0975km" & Chr(10) & "（枪声成绩）", "25公里", "30公里", "35公里", "40公里", "全程42.195km" & Chr(10) & "（枪声成绩）", "50km" & Chr(10) & "（枪声成绩）", "100km" & Chr(10) & "（枪声成绩）", "其他" & Chr(10) & "（枪声成绩）", "所参与项目" & Chr(10) & "（净计时成绩）")
+
+    For i = 1 To 25
+        If Cells(1, i) <> aaa(i - 1) Then
+            MsgBox Cells(1, i) & i & " is not " & aaa(i - 1)
+        Else
+            c = c + 1
+        End If
+    Next
+    
+    If c = 25 Then MsgBox "Done!"
+        
+End Sub
+
+
