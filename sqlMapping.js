@@ -117,7 +117,7 @@ var user = {
         from "+db_m+"."+t_record+" \
         where IDnumber=? group by class",
     //recordDistByMatchByClass
-    	recordDistFullByMatch:"select class,gender,count(netrecord) as total,\
+    	recordDistFullByMatch:"select gender,count(netrecord) as total,\
         sum(case when netrecord < '02:00:00' then 1 else 0 end) as '肯定bug了',\
         sum(case when netrecord > '02:00:00' and netrecord < '02:30:00' then 1 else 0 end) as '2~2.5hr',\
         sum(case when netrecord > '02:30:00' and netrecord < '03:00:00' then 1 else 0 end) as '2.5~3hr',\
@@ -129,9 +129,9 @@ var user = {
         sum(case when netrecord > '05:30:00' and netrecord < '06:00:00' then 1 else 0 end) as '5.5~6hr',\
         sum(case when netrecord > '06:00:00'  then 1 else 0 end) as '6hr~'\
         from "+db_m+"."+t_record+" \
-		where matchid =?\
-		group by class, gender;",
-    	recordDistHalfByMatch:"select class,gender ,count(netrecord) as total,\
+		where matchid =? and class='全程' \
+		group by gender;",
+    	recordDistHalfByMatch:"select gender ,count(netrecord) as total,\
         sum(case when netrecord < '01:00:00' then 1 else 0 end) as '竟然不是bug',\
         sum(case when netrecord > '01:00:00' and netrecord < '01:15:00' then 1 else 0 end) as '1~1.25hr',\
         sum(case when netrecord > '01:15:00' and netrecord < '01:30:00' then 1 else 0 end) as '1.25~1.5hr',\
@@ -143,8 +143,8 @@ var user = {
         sum(case when netrecord > '02:45:00' and netrecord < '03:00:00' then 1 else 0 end) as '2.75~2hr',\
         sum(case when netrecord > '03:00:00'  then 1 else 0 end) as '3hr~'\
         from "+db_m+"."+t_record+" \
-		where matchid =?\
-		group by class, gender;",
+		where matchid =? and class='半程' \
+		group by gender;",
 	//rankingByIDByClass
 	rankingByIDByClass:"",
 	filter:"",
@@ -155,6 +155,8 @@ var user = {
 	networkLocationByMatch:"select count(u.auto_province) as counts,u.auto_province as location\
 		from "+db_m+"."+t_user+" u join "+db_m+"."+t_record+" as r on u.IDnumber=r.IDnumber and r.matchid=? \
 		group by u.auto_province order by counts",
+	classCountByID:"select class, count(*) as number from "+db_m+"."+t_record+" where IDnumber=? group by class",
+	fakeComingMatch:"SELECT * FROM SBSMarathon.2017match",
 	finishersByMatch:""//4hr Finishers
 
 

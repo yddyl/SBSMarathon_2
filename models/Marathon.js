@@ -10,7 +10,6 @@ var t_country='countries';
 
 // 使用连接池，提升性能
 var pool  = mysql.createPool( $db.mysql);
-
 // 向前台返回JSON方法的简单封装
 var jsonWrite = function (res, ret) {
     if(typeof ret === 'undefined') {
@@ -102,10 +101,11 @@ var jtoArrayDist =function (res,ret) {
             var temp=[];
             var Class;
             var total;
+            var gender
             for (var i in data) {
                 title = i;
                 content = data[i];
-                if (i != "class"&& i!="total") {
+                if (i != "class"&& i!="total"&& i!="gender") {
                     var time = title;
                     var value = content;
                     //data[i] = {time, value};
@@ -114,9 +114,11 @@ var jtoArrayDist =function (res,ret) {
                     Class=data[i];
                 }else if(i == "total"){
                     total=data[i];
+                }else if(i == "gender"){
+                    gender=data[i];
                 }
             }
-            temp.push({Class,total,dist});
+            temp.push({Class,total,gender,dist});
             console.log(dist);
             arr.push(temp);
         }
@@ -305,9 +307,11 @@ module.exports = {
         var match =+req.query.match;
         var runclass=req.query.class;
         if (runclass=='全程'){
+            console.log("quanchenga ");
             pool.getConnection(function(err, connection) {
                 if (err) throw err;
                 connection.query($sql.recordDistFullByMatch,match, function(err, result) {
+                    
                     jtoArrayDist(res,result);
                     connection.release();
                 });
@@ -441,7 +445,11 @@ FROM \
 		var ageup = req.query.ageup;
 		var constellation = req.query.constellation;
 		var zodiac = req.query.zodiac;
+        var netRecordHigher=req.query.netRecordHigher;
+        var netRecordLower=req.query.netRecordLower;
+        var mclass=req.query.class;
 		var segment = req.query.segment;
+        var match=req.query.match;
 		var sqlQuery="";
 		if(segment){
 			switch(segment){
@@ -454,19 +462,29 @@ FROM \
 				case "age":
 					BY="ELT(CEILING(auto_age/10)-1,'11-20','21-30','31-40','41-50','51-60','61-70','71-80','81-90','91-100')";
 					break;
+                case "time":
+                    BY="ELT(CEILING(time_to_sec(netrecord)/60/60-0.5),'0-1.5','1.5-2.5','2.5-3.5','3.5-4.5',\
+                        '4.5-5.5','5.5-6.5','6.5-7.5','7.5-8.5','8.5-9.5','9.5-10.5','10.5-11.5','11.5-12.5',\
+                        '12.5-13.5','13.5-14.5','14.5-15.5','15.5-16.5','16.5-17.5','17.5-18.5','18.5-19.5',\
+                        '19.5-20.5','20.5-21.5','21.5-22.5','22.5-23.5','23.5-24.5')";
+                    break;
 				case "zodiac":
 					BY="auto_zodiac";
 					break;
 				case "constellation":
 					BY="auto_constellation";
 			}	
-			sqlQuery="select a.segment as 'segment', IF(b.number IS NULL , 0, b.number) as number\
+			/*sqlQuery="select a.segment as 'segment', IF(b.number IS NULL , 0, b.number) as number\
 			FROM (\
 			select "+BY+" as 'segment', count(userid) as number\
-			FROM "+db_m+"."+t1_user+" group by segment) a \
-			left join (\
-			select "+BY+" as 'segment', count(userid) as number\
-			FROM "+db_m+"."+t1_user+" where 1 "
+			FROM "+db_m+"."+t1_user+", "+db_m+"."+t1_record+" group by segment) a \
+			left join (\*/
+			sqlQuery="select "+BY+" as 'segment', count(userid) as number\
+			FROM "+db_m+"."+t1_user+" u, "+db_m+"."+t1_record+" r where 1  and u.IDnumber=r.IDnumber";
+            /*if(match)
+                sqlQuery+=", "+db_m+"."+t1_record+" r ";
+
+            sqlQuery+=" where 1 ";*/
 		}else
 			sqlQuery="select count(*) as number FROM "+db_m+"."+t1_user+" where 1 ";
 
@@ -482,11 +500,32 @@ FROM \
 			sqlQuery+=" and auto_constellation=\'"+constellation+"\'";
 		if(zodiac)
 			sqlQuery+=" and auto_zodiac=\'"+zodiac+"\'";
+        if(netRecordHigher)
+            sqlQuery+="and time_to_sec(netrecord)/60/60>\'"+netRecordHigher+"\'";
+        if(netRecordLower)
+            sqlQuery+="and time_to_sec(netrecord)/60/60<\'"+netRecordLower+"\'";
+        if(mclass)
+            sqlQuery+="and class=\'"+mclass+"\'";
+        if(match)
+            sqlQuery+=" and matchid=\'"+match+"\' and u.IDnumber=r.IDnumber ";
 		if(segment)
-			sqlQuery+="group by  segment) b on b.segment =a.segment order by segment"
+			sqlQuery+=" group by  segment";//) b on b.segment =a.segment order by segment";
 			//sqlQuery+=' group by '+BY;	
 
 		console.log("Filter Query: ",sqlQuery);
+        /* EXAMPLE:
+        select a.segment as 'segment', IF(b.number IS NULL , 0, b.number) as number
+        FROM (
+            select auto_constellation as 'segment', count(userid) as number
+            FROM user group by segment) a 
+        left join (
+                select auto_constellation as 'segment', count(userid) as number
+                FROM user u, record r where 1
+                and matchid=28
+                and u.IDnumber=r.IDnumber
+                    and auto_gender='男'
+                    group by  segment) b on b.segment =a.segment order by segment
+        */
 	
         pool.getConnection(function(err, connection) {
             if (err) throw err;
@@ -508,20 +547,26 @@ FROM \
 				BY="auto_province";
 				break;
 			case "age":
-				BY="auto_age";
+				BY="ELT(CEILING(auto_age/10)-1,'11-20','21-30','31-40','41-50','51-60','61-70','71-80','81-90','91-100')";
 				break;
 			case "zodiac":
 				BY="auto_zodiac";
 				break;
+            case "time":
+                BY="ELT(CEILING(time_to_sec(netrecord)/60/60-0.5),'0-1.5','1.5-2.5','2.5-3.5','3.5-4.5',\
+                    '4.5-5.5','5.5-6.5','6.5-7.5','7.5-8.5','8.5-9.5','9.5-10.5','10.5-11.5','11.5-12.5',\
+                    '12.5-13.5','13.5-14.5','14.5-15.5','15.5-16.5','16.5-17.5','17.5-18.5','18.5-19.5',\
+                    '19.5-20.5','20.5-21.5','21.5-22.5','22.5-23.5','23.5-24.5')";
+                break;
 			case "constellation":
 				BY="auto_constellation";
 		}
-		if(dataBy!="age"){
-			var sqlQuery="select "+BY+" as "+dataBy+", count(*) as number FROM "+db_m+"."+t1_user+" group by "+BY;
+		//if(dataBy!="age"){
+			var sqlQuery="select "+BY+" as "+dataBy+", count(*) as number FROM "+db_m+"."+t1_user+" u, "+db_m+"."+t1_record+" r where 1  and u.IDnumber=r.IDnumber group by "+BY;
 			//select count(*) as number, auto_gender as gender FROM "+db_m+"."+t1_user+" group by auto_gender
-		}else{
+		/*}else{
 			var sqlQuery="SELECT ELT(CEILING("+BY+"/10)-1,'11-20','21-30','31-40','41-50','51-60','61-70','71-80','81-90','91-100') as 'range', COUNT(*) as 'number' FROM "+db_m+"."+t1_user+" GROUP BY ELT(CEILING("+BY+"/10)-1,'11-20','21-30','31-40','41-50','51-60','61-70','71-80','81-90','91-100')";
-		}
+		}*/
 		console.log('Compair Query: ',sqlQuery);
         pool.getConnection(function(err, connection) {
             if (err) throw err;
@@ -640,6 +685,28 @@ FROM \
                 connection.release();
             });
         });
+    },
+    //classCountByID
+    classCountByID:function(req,res,next){
+        var id=req.query.id;
+        pool.getConnection(function(err, connection) {
+            if (err) throw err;
+            connection.query($sql.classCountByID,id, function(err, result) {
+                jsonWrite(res, result);
+                connection.release();
+            });
+        });
+    },
+    //fakeComingMatch
+    fakeComingMatch:function(req,res,next){
+        var id=req.query.id;
 
-    }
+        pool.getConnection(function(err, connection) {
+            if (err) throw err;
+            connection.query($sql.fakeComingMatch,id, function(err, result) {
+                jsonWrite(res, result);
+                connection.release();
+            });
+        });
+    },
 };

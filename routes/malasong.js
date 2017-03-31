@@ -73,6 +73,12 @@ router.get('/medianRecordByGenderByClass', function(req, res, next) {
 router.get('/networkLocationByMatch', function(req, res, next) {
     malasong.networkLocationByMatch(req, res, next);
 });
+router.get('/classCountByID', function(req, res, next) {
+    malasong.classCountByID(req, res, next);
+});
+router.get('/fakeComingMatch', function(req, res, next) {
+    malasong.fakeComingMatch(req, res, next);
+});
 
 // images: /course/20140006.png for 路线图， /logo/20140006.png for logo
 app.use(express.static('public'));
