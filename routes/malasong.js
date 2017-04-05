@@ -85,6 +85,10 @@ router.get('/match', function(req, res, next) {
 router.get('/avgSpeed', function(req, res, next) {
     malasong.avgSpeed(req, res, next);
 });
+router.get('/nearByRecord', function(req, res, next) {
+    malasong.nearByRecord(req, res, next);
+});
+
 // images: /course/20140006.png for 路线图， /logo/20140006.png for logo
 app.use(express.static('public'));
 

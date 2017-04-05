@@ -790,5 +790,138 @@ FROM \
     select sec_to_time( sum(time_to_sec( r.netrecord))/count(*)) as avrg, auto_constellation 
 from user u join record r on u.IDnumber=r.IDnumber group by auto_constellation order by avrg
 */
+//nearByRecord
+    nearByRecord:function (req, res, next) {
+            var id=req.query.id;
+            var mclass=req.query.class;
+            var recordup=req.query.recordup*60;
+            var recordlow=req.query.recordlow*60;
+            var byAge=req.query.byage;
+            var byGender=req.query.bygender;
+            var byProvince=req.query.byprovince;
+            var byConstellation=req.query.byconstellation;
+            var byZodiac=req.query.byzodiac;
+            var matchid=req.query.matchid;
+            var SHOW="";
+            var BY="";
+            var match="";
+            if(!mclass)
+                mclass='全程';
+            if(!recordup)
+                recordup=900;
+            if(!recordlow)
+                recordlow=900;
+
+            if(byAge){
+                BY+=" and u.auto_age<CEILING(temp.age/10)*10 and u.auto_age>ceiling((temp.age-10)/10)*10 ";
+                SHOW+=",u.auto_age age ";
+            }if(byGender){
+                BY+=" and u.auto_gender=temp.gender ";
+                SHOW+=",u.auto_gender gender ";
+            }if(byProvince){
+                BY+=" and u.auto_province=temp.province ";
+                SHOW+=",u.auto_province province ";
+            }if(byConstellation){
+                BY+=" and u.auto_constellation=temp.constellation ";
+                SHOW+=",u.auto_constellation constellation";
+            }if(byZodiac){
+                BY+=" and u.auto_zodiac=temp.zodiac ";
+                SHOW+=",u.auto_zodiac zodiac";
+            }
+            if(matchid)
+                match=" and matchid='"+matchid+"'";
+
+            var sqlQuery="select u.IDnumber, sec_to_time( r.avgRecord) avgRecord "+SHOW+" \
+                from "+db_m+"."+t1_user+" u, \
+                    (select IDnumber, sum(time_to_sec(netrecord))/count(*) avgRecord \
+                        from "+db_m+"."+t1_record+" r \
+                        where class='"+mclass+"' \
+                        "+match+" \
+                        group by IDnumber) r, \
+                    (select sum(time_to_sec(netrecord))/count(*) baseRecord, \
+                        u.auto_age age, \
+                        u.auto_gender gender, \
+                        u.auto_province province, \
+                        u.auto_constellation constellation, \
+                        u.auto_zodiac zodiac \
+                    from "+db_m+"."+t1_record+" r, "+db_m+"."+t1_user+" u \
+                    where r.IDnumber='"+id+"' \
+                        and u.IDnumber=r.IDnumber \
+                        and class='"+mclass+"') temp \
+                where \
+                    r.avgRecord-temp.baseRecord<"+recordlow+" \
+                    and temp.baseRecord-r.avgRecord<"+recordup+" \
+                    and u.IDnumber=r.IDnumber \
+                    "+BY+" \
+                order by avgRecord ";
+
+            console.log('nearByRecord Query: ',sqlQuery);
+            pool.getConnection(function(err, connection) {
+                if (err) throw err;
+                connection.query(sqlQuery,BY, function(err, result) {
+                    jsonWrite(res, result);
+                    connection.release();
+                });
+            });
+        },
+/*
+select u.IDnumber, sec_to_time( r.avgRecord) avgRecord, u.auto_gender gender #u.auto_age #u.auto_zodiac
+from user u,
+    (select IDnumber, sum(time_to_sec(netrecord))/count(*) avgRecord
+        from record r
+        where class='全程' 
+        group by IDnumber) r,
+        #on r.IDnumber=u.IDnumber
+
+    (select sum(time_to_sec(netrecord))/count(*) baseRecord,
+        u.auto_gender gender,
+        u.auto_age age,
+        u.auto_constellation constellation,
+        u.auto_province province,
+        u.auto_zodiac zodiac
+    from record r, user u
+    where r.IDnumber='530102197011153736' 
+        and u.IDnumber=r.IDnumber 
+        and class='全程') temp
+    #user u
+where
+    r.avgRecord-temp.baseRecord<900 
+    and temp.baseRecord-r.avgRecord<900
+    and u.IDnumber=r.IDnumber
+    #and u.auto_province=temp.province
+    #and u.auto_gender=temp.gender
+    #and u.auto_age<CEILING(temp.age/10)*10 and u.auto_age>ceiling((temp.age-10)/10)*10
+    #and u.auto_zodiac=temp.zodiac
+    #and u.auto_constellation=temp.constellation
+order by avgRecord
+
+select u.IDnumber, sec_to_time( r.avgRecord) avgRecord, u.auto_age age, u.auto_gender gender, u.auto_province province, u.auto_constellation constellation, u.auto_zodiac zodiac 
+from user u, 
+    (select IDnumber, sum(time_to_sec(netrecord))/count(*) avgRecord 
+        from record r 
+        where class='全程' 
+        group by IDnumber) r, 
+    (select sum(time_to_sec(netrecord))/count(*) baseRecord, 
+        u.auto_age age, 
+        u.auto_gender gender, 
+        u.auto_province province, 
+        u.auto_constellation constellation, 
+        u.auto_zodiac zodiac 
+    from record r, user u 
+    where r.IDnumber='530102197011153736' 
+        and u.IDnumber=r.IDnumber 
+        and class='全程') temp 
+where 
+    r.avgRecord-temp.baseRecord<900 
+    and temp.baseRecord-r.avgRecord<900 
+    and u.IDnumber=r.IDnumber 
+    #and u.auto_age<CEILING(temp.age/10)*10 and u.auto_age>ceiling((temp.age-10)/10)*10 
+    #and u.auto_gender=temp.gender 
+    #and u.auto_province=temp.province 
+    #and u.auto_constellation=temp.constellation 
+    #and u.auto_zodiac=temp.zodiac 
+order by avgRecord
+*/
+
 
 };
