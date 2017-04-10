@@ -152,8 +152,6 @@ module.exports = {
     //userByName
     userByName: function (req, res, next) {
         var name = req.query.name;
-        console.log(id);
-        console.log(req.query.id);
         pool.getConnection(function(err, connection) {
             if (err) throw err;
             connection.query($sql.userByName, name, function(err, result) {
@@ -802,6 +800,7 @@ from user u join record r on u.IDnumber=r.IDnumber group by auto_constellation o
             var byConstellation=req.query.byconstellation;
             var byZodiac=req.query.byzodiac;
             var matchid=req.query.matchid;
+            var gender=req.query.gender;
             var SHOW="";
             var BY="";
             var match="";
@@ -823,10 +822,13 @@ from user u join record r on u.IDnumber=r.IDnumber group by auto_constellation o
                 SHOW+=",u.auto_province province ";
             }if(byConstellation){
                 BY+=" and u.auto_constellation=temp.constellation ";
-                SHOW+=",u.auto_constellation constellation";
+                SHOW+=",u.auto_constellation constellation ";
             }if(byZodiac){
                 BY+=" and u.auto_zodiac=temp.zodiac ";
-                SHOW+=",u.auto_zodiac zodiac";
+                SHOW+=",u.auto_zodiac zodiac ";
+            }if(gender){
+                BY+=" and u.auto_gender='"+gender+"' ";
+                SHOW+=",u.auto_gender gender ";
             }
             if(matchid)
                 match=" and matchid='"+matchid+"'";
