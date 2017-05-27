@@ -6,6 +6,7 @@ var db_m='SBSMarathon';
 var t1_user='user';
 var t1_record='record';
 var t1_match='match';
+var t1_login='login';
 var t_country='countries';
 
 // 使用连接池，提升性能
@@ -866,6 +867,170 @@ from user u join record r on u.IDnumber=r.IDnumber group by auto_constellation o
                 });
             });
         },
+            //medianRecordByGenderByClass
+    authenticate:function (req, res, next) {
+        var username = req.query.username;
+        //var group= req.query.class;
+
+        var sqlQuery="";
+        sqlQuery="SELECT * FROM "+db_m+"."+t1_login+" l where username=\'"+username+"\';";
+
+        console.log("authenticate Query: ",sqlQuery);
+    
+        pool.getConnection(function(err, connection) {
+            if (err) throw err;
+            connection.query(sqlQuery, username, function(err, result) {
+                jsonWrite(res, result);
+                connection.release();
+            });
+        });
+    },
+
+    register:function (req, res, next) {
+        
+        for (var i in req.query){
+            if(req.query[i]=='')
+                req.query[i]=null;
+        }
+        time=(new Date()).toISOString().substring(0, 19).replace('T', ' ');//2015-07-23 11:26:00
+        
+        var sqlQuery="INSERT INTO "+db_m+"."+t1_login+" set ? ";
+        var post  = {
+            username: req.query.username, 
+            password: req.query.password,
+            loginemail: req.query.email,
+            loginphone: req.query.phone,
+            loginlastname: req.query.lastname,
+            loginfirstname: req.query.firstname,
+            };
+            post.registertime=time;
+            post.updatetime=time;
+
+        /*
+        var sqlInsertNeiRong= "\'"+username+"\', "+"\'"+password+"\'";
+        sqlInsertNeiRong+=",";
+        if(email)
+            sqlInsertNeiRong+=" \'"+email+"\'";
+        sqlInsertNeiRong+=",";
+        if(phone)
+            sqlInsertNeiRong+=" \'"+phone+"\'";
+        sqlInsertNeiRong+=",";
+        if(lastname)
+            sqlInsertNeiRong+=" \'"+lastname+"\'";
+        sqlInsertNeiRong+=",";
+        if(firstname)
+            sqlInsertNeiRong+=" \'"+firstname+"\'";
+        */
+
+        //sqlQuery="INSERT INTO "+db_m+"."+t1_login+" l VALUES("+sqlInsertNeiRong+");";
+
+        console.log("authenticate Query: ",sqlQuery);
+    
+        pool.getConnection(function(err, connection) {
+            if (err) throw err;
+            console.log("inserted");
+    
+            connection.query(sqlQuery, post, function(err, result) {
+                if (err) {
+                    console.log("mylog : facebook connect error");
+                    if (err.code === 'PROTOCOL_CONNECTION_LOST') {
+                        //handle disconnect
+                    } else if (err.code === 'ER_DUP_ENTRY') {
+                        console.log("mylog : fb ER_DUP_ENTRY detected");
+                        // release connection created with pool.getConnection
+                        if (connection) connection.release();
+                        // req.flash to set flashdata using connect-flash
+                        jsonWrite(res, err.message);
+                        //return done(err, false, req.flash('loginMessage', 'Facebook ID registered to another user.')); 
+                    } 
+                }
+                else { //continue 
+                        jsonWrite(res, 'success insert');
+                }
+            });
+        });
+    },
+    update:function (req, res, next) {      
+        var sqlQuery="UPDATE "+db_m+"."+t1_login+" SET ? WHERE username= \'"+req.query.username+"\'";
+                
+        var post = {};
+        for (var i in req.query){
+            if(req.query[i]!=''){
+                //var name=req.query[i].name;
+                // Object.keys(myVar)[0];
+                console.log("hhhh: "+ i);
+                if(i=='username')
+                    ii='username';
+                if(i=='password')
+                    ii='password';
+                if(i=='email')
+                    ii='loginemail';
+                if(i=='phone')
+                    ii='loginphone';
+                if(i=='lastname')
+                    ii='loginlastname';
+                if(i=='firstname')
+                    ii='loginfirstname';
+                post[ii]=req.query[i];                
+            }
+        }
+        time=(new Date()).toISOString().substring(0, 19).replace('T', ' ');//2015-07-23 11:26:00;
+        post.updatetime=time;
+        console.log(post);
+
+        // if(email)
+        //     sqlInsertNeiRong+=" \'"+email+"\'";
+        // sqlInsertNeiRong+=",";
+        // if(phone)
+        //     sqlInsertNeiRong+=" \'"+phone+"\'";
+        // sqlInsertNeiRong+=",";
+        // if(lastname)
+        //     sqlInsertNeiRong+=" \'"+lastname+"\'";
+        // sqlInsertNeiRong+=",";
+        // if(firstname)
+        //     sqlInsertNeiRong+=" \'"+firstname+"\'";
+
+        // var post  = {
+        //     username: req.query.username, 
+        //     password: req.query.password,
+        //     //loginemail: null,
+        //     loginphone: req.query.phone,
+        //     loginlastname: req.query.lastname,
+        //     loginfirstname: req.query.firstname
+        //     };
+        console.log("update Query: ",sqlQuery);
+    
+        pool.getConnection(function(err, connection) {
+            if (err) throw err;
+            console.log("updated");
+    
+            connection.query(sqlQuery, post, function(err, result) {
+                if (err) {
+                    console.log("mylog : facebook connect error");
+                    if (err.code === 'PROTOCOL_CONNECTION_LOST') {
+                        //handle disconnect
+                    } else if (err.code === 'ER_DUP_ENTRY') {
+                        console.log("mylog : fb ER_DUP_ENTRY detected");
+                        // release connection created with pool.getConnection
+                        if (connection) connection.release();
+                        // req.flash to set flashdata using connect-flash
+                        jsonWrite(res, err.message);
+                        //return done(err, false, req.flash('loginMessage', 'Facebook ID registered to another user.')); 
+                    } else throw err;
+                }else { //continue 
+                        jsonWrite(res, 'success update');
+                }
+                //jsonWrite(res, result);
+                /*
+                if(err) {
+                    if(err=="ER")
+                    throw err;
+                console.log("1 inserted!")
+                connection.release();
+                */
+            });
+        });
+    },
 /*
 select u.IDnumber, sec_to_time( r.avgRecord) avgRecord, u.auto_gender gender #u.auto_age #u.auto_zodiac
 from user u,
