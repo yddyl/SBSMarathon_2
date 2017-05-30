@@ -88,14 +88,18 @@ router.get('/avgSpeed', function(req, res, next) {
 router.get('/nearByRecord', function(req, res, next) {
     malasong.nearByRecord(req, res, next);
 });
-router.get('/register', function(req, res, next) {
-    malasong.register(req, res, next);
-});
+
 router.get('/authenticate', function(req, res, next) {
     malasong.authenticate(req, res, next);
 });
+router.get('/register', function(req, res, next) {
+    malasong.register(req, res, next);
+});
 router.get('/update', function(req, res, next) {
     malasong.update(req, res, next);
+});
+router.get('/smsvalidation', function(req, res, next) {
+    malasong.smsvalidation(req, res, next);
 });
 // images: /course/20140006.png for 路线图， /logo/20140006.png for logo
 app.use(express.static('public'));

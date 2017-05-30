@@ -1,6 +1,10 @@
 ﻿var mysql = require('mysql');
 var $db = require('../db');
 var $sql = require('../sqlMapping');
+var querystring = require('querystring');
+var sms =require ('../sms');
+
+sms.key= 'af22de2e9ff95b01a985546df0068ef7';
 
 var db_m='SBSMarathon';
 var t1_user='user';
@@ -892,7 +896,7 @@ from user u join record r on u.IDnumber=r.IDnumber group by auto_constellation o
             if(req.query[i]=='')
                 req.query[i]=null;
         }
-        time=(new Date()).toISOString().substring(0, 19).replace('T', ' ');//2015-07-23 11:26:00
+        var time=(new Date()).toISOString().substring(0, 19).replace('T', ' ');//2015-07-23 11:26:00
         
         var sqlQuery="INSERT INTO "+db_m+"."+t1_login+" set ? ";
         var post  = {
@@ -902,9 +906,9 @@ from user u join record r on u.IDnumber=r.IDnumber group by auto_constellation o
             loginphone: req.query.phone,
             loginlastname: req.query.lastname,
             loginfirstname: req.query.firstname,
-            };
-            post.registertime=time;
-            post.updatetime=time;
+        };
+        post.registertime=time;
+        post.updatetime=time;
 
         /*
         var sqlInsertNeiRong= "\'"+username+"\', "+"\'"+password+"\'";
@@ -932,7 +936,8 @@ from user u join record r on u.IDnumber=r.IDnumber group by auto_constellation o
     
             connection.query(sqlQuery, post, function(err, result) {
                 if (err) {
-                    console.log("mylog : facebook connect error");
+                    console.log("mylog : register connect error");
+                    jsonWrite(res, err.code);
                     if (err.code === 'PROTOCOL_CONNECTION_LOST') {
                         //handle disconnect
                     } else if (err.code === 'ER_DUP_ENTRY') {
@@ -940,7 +945,7 @@ from user u join record r on u.IDnumber=r.IDnumber group by auto_constellation o
                         // release connection created with pool.getConnection
                         if (connection) connection.release();
                         // req.flash to set flashdata using connect-flash
-                        jsonWrite(res, err.message);
+                        //jsonWrite(res, err.code);
                         //return done(err, false, req.flash('loginMessage', 'Facebook ID registered to another user.')); 
                     } 
                 }
@@ -950,15 +955,103 @@ from user u join record r on u.IDnumber=r.IDnumber group by auto_constellation o
             });
         });
     },
-    update:function (req, res, next) {      
-        var sqlQuery="UPDATE "+db_m+"."+t1_login+" SET ? WHERE username= \'"+req.query.username+"\'";
-                
-        var post = {};
+    smsvalidation:function (req, res, next) {  
+        var phonenumber= req.query.phonenumber;
+        var msg="您的验证码是: "+req.query.message + "【iPZmall】";
+        sms.key="b69f54c9fbc61ad4cfb1ec2ee3a7b3d6";
+        sms.send(phonenumber,msg,function(error, resp, body){
+            console.log(body);
+            jsonWrite(res,'sms sent');
+        })
+    },
+
+    link:function (req, res, next) {  
+        var username=req.query.username;
+        var id=req.query.id;
+        var time=(new Date()).toISOString().substring(0, 19).replace('T', ' ');//2015-07-23 11:26:00
+        
+        var post={
+            username: username,
+            updatetime: time
+        }
+
+        var sqlQuery="UPDATE "+db_m+"."+t1_user+" SET ? WHERE IDnumber= \'"+id+"\'";
+
+        pool.getConnection(function(err, connection) {
+            if (err) throw err;
+            console.log("link");
+
+            connection.query(sqlQuery, post, function(err, result) {
+                if (err) {
+                    console.log("mylog : link connect error");
+                    jsonWrite(res, err.code);
+                    if (err.code === 'PROTOCOL_CONNECTION_LOST') {
+                        //handle disconnect
+                    } else if (err.code === 'ER_DUP_ENTRY') {
+                        console.log("mylog :ER_DUP_ENTRY detected");
+                        // release connection created with pool.getConnection
+                        if (connection) connection.release();
+                    } else throw err;
+                }else {
+                    jsonWrite(res, 'success linked');
+                }
+            });
+        });
+    },
+
+    //updatalogin&profile
+    update:function (req, res, next) {
+        for (var i in req.query){
+            if(req.query[i]=='')
+                req.query[i]=null;
+        }
+        var time=(new Date()).toISOString().substring(0, 19).replace('T', ' ');//2015-07-23 11:26:00;
+/*      username=req.query.username;
+        name=req.query.name;
+        gender=req.query.gender;
+        IDtype=req.query.IDtype;
+        IDnumber=req.query.IDnumber;
+
+        birthday=req.query.birthday;
+        age=req.query.age;
+        constellation=req.query.constellation;
+        zodiac=req.query.zodiac;
+
+        country=req.query.country;
+        country_en=req.query.country_en;
+        province=req.query.province; 
+        phonenumber=req.query.phonenumber; 
+        email=req.query.email;*/
+
+        //profile query
+        var updateProfile="INSERT INTO "+db_m+"."+t1_user+" set ? ";
+        var post_profile  = {
+            username: req.query.username,
+            name: req.query.name,
+            gender: req.query.gender,
+            IDtype: req.query.IDtype,
+            IDnumber: req.query.IDnumber,
+
+            birthday: req.query.birthday,
+            age: req.query.age,
+            constellation: req.query.constellation,
+            zodiac: req.query.zodiac,
+
+            country: req.query.country,
+            country_en: req.query.country_en,
+            province: req.query.province,
+            phonenumber: req.query.phonenumber, 
+            email: req.query.email,
+
+            updatetime: time
+        };
+
+        //login query     
+        var updateLogin="UPDATE "+db_m+"."+t1_login+" SET ? WHERE username= \'"+req.query.username+"\'";               
+        var post_login = {};
         for (var i in req.query){
             if(req.query[i]!=''){
-                //var name=req.query[i].name;
-                // Object.keys(myVar)[0];
-                console.log("hhhh: "+ i);
+                ii='';
                 if(i=='username')
                     ii='username';
                 if(i=='password')
@@ -970,64 +1063,49 @@ from user u join record r on u.IDnumber=r.IDnumber group by auto_constellation o
                 if(i=='lastname')
                     ii='loginlastname';
                 if(i=='firstname')
-                    ii='loginfirstname';
-                post[ii]=req.query[i];                
+                    ii='loginfirstname';          
+                if(ii!='')
+                    post_login[ii]=req.query[i];                
             }
         }
-        time=(new Date()).toISOString().substring(0, 19).replace('T', ' ');//2015-07-23 11:26:00;
-        post.updatetime=time;
-        console.log(post);
+        post_login.updatetime=time;
+        
 
-        // if(email)
-        //     sqlInsertNeiRong+=" \'"+email+"\'";
-        // sqlInsertNeiRong+=",";
-        // if(phone)
-        //     sqlInsertNeiRong+=" \'"+phone+"\'";
-        // sqlInsertNeiRong+=",";
-        // if(lastname)
-        //     sqlInsertNeiRong+=" \'"+lastname+"\'";
-        // sqlInsertNeiRong+=",";
-        // if(firstname)
-        //     sqlInsertNeiRong+=" \'"+firstname+"\'";
-
-        // var post  = {
-        //     username: req.query.username, 
-        //     password: req.query.password,
-        //     //loginemail: null,
-        //     loginphone: req.query.phone,
-        //     loginlastname: req.query.lastname,
-        //     loginfirstname: req.query.firstname
-        //     };
-        console.log("update Query: ",sqlQuery);
-    
-        pool.getConnection(function(err, connection) {
-            if (err) throw err;
-            console.log("updated");
-    
-            connection.query(sqlQuery, post, function(err, result) {
+        pool.getConnection(function(error, connection) {
+            var write="";
+            if (error) throw error;
+            console.log("updating profile");
+            //update profile
+            connection.query(updateProfile, post_profile, function(err, result) {
                 if (err) {
-                    console.log("mylog : facebook connect error");
+                    console.log("mylog : profile update error");
+                    write+="-Profile update err.code: "+err.code+"-";
                     if (err.code === 'PROTOCOL_CONNECTION_LOST') {
-                        //handle disconnect
                     } else if (err.code === 'ER_DUP_ENTRY') {
-                        console.log("mylog : fb ER_DUP_ENTRY detected");
-                        // release connection created with pool.getConnection
+                        console.log("profile update : ER_DUP_ENTRY detected");
                         if (connection) connection.release();
-                        // req.flash to set flashdata using connect-flash
-                        jsonWrite(res, err.message);
-                        //return done(err, false, req.flash('loginMessage', 'Facebook ID registered to another user.')); 
                     } else throw err;
                 }else { //continue 
-                        jsonWrite(res, 'success update');
+                        write+="-Profile update success-";
                 }
-                //jsonWrite(res, result);
-                /*
-                if(err) {
-                    if(err=="ER")
-                    throw err;
-                console.log("1 inserted!")
-                connection.release();
-                */
+            });
+
+            console.log("updating login");
+            //update login
+            connection.query(updateLogin, post_login, function(err2, result) {
+                if (err2) {
+                    console.log("mylog : login update error");
+                    write+="-Login update err.code: "+err.code+"-";
+                    jsonWrite(res, write);
+                    if (err2.code === 'PROTOCOL_CONNECTION_LOST') {
+                    } else if (err2.code === 'ER_DUP_ENTRY') {
+                        console.log("login update : ER_DUP_ENTRY detected");
+                        if (connection) connection.release();
+                    } else throw err2;
+                }else { //continue 
+                        write+="-Login update success-";
+                        jsonWrite(res, write);
+                }
             });
         });
     },
