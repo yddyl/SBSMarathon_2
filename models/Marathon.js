@@ -871,27 +871,54 @@ from user u join record r on u.IDnumber=r.IDnumber group by auto_constellation o
                 });
             });
         },
-            //medianRecordByGenderByClass
+    //m/authenticate?username=test
     authenticate:function (req, res, next) {
-        var username = req.query.username;
-        //var group= req.query.class;
+        var username = req.query.username;       
+        var time=(new Date()).toISOString().substring(0, 19).replace('T', ' ');//2015-07-23 11:26:00
+        var loginPost={
+            logintime: time
+        }
+        var loginUpdate="UPDATE "+db_m+"."+t1_login+" SET ? WHERE username=\'"+username+"\';";
 
-        var sqlQuery="";
-        sqlQuery="SELECT * FROM "+db_m+"."+t1_login+" l where username=\'"+username+"\';";
-
-        console.log("authenticate Query: ",sqlQuery);
+        var sqlQuery="SELECT * FROM "+db_m+"."+t1_login+" WHERE username=\'"+username+"\';";
     
         pool.getConnection(function(err, connection) {
             if (err) throw err;
-            connection.query(sqlQuery, username, function(err, result) {
+            connection.query(sqlQuery,function(err, result) {
                 jsonWrite(res, result);
+                //connection.release();
+            });
+            connection.query(loginUpdate, loginPost, function(err, result) {
+                //jsonWrite(res, result);
                 connection.release();
             });
         });
     },
+    //m/phoneauthenticate?phonenumber=12345678
+    phoneauthenticate:function (req, res, next) {
+        var phonenumber = req.query.phonenumber;       
+        var time=(new Date()).toISOString().substring(0, 19).replace('T', ' ');//2015-07-23 11:26:00
+        var loginPost={
+            logintime: time
+        }
+        var loginUpdate="UPDATE "+db_m+"."+t1_login+" SET ? WHERE loginphone=\'"+phonenumber+"\';";
 
-    register:function (req, res, next) {
-        
+        var sqlQuery="SELECT * FROM "+db_m+"."+t1_login+" WHERE loginphone=\'"+phonenumber+"\';";
+    
+        pool.getConnection(function(err, connection) {
+            if (err) throw err;
+            connection.query(sqlQuery,function(err, result) {
+                jsonWrite(res, result);
+                //connection.release();
+            });
+            connection.query(loginUpdate, loginPost, function(err, result) {
+                //jsonWrite(res, result);
+                connection.release();
+            });
+        });
+    },
+    //m/register?username=test&password=test&phone=12345678&email=test@test.com&name=lasttest
+    register:function (req, res, next) {        
         for (var i in req.query){
             if(req.query[i]=='')
                 req.query[i]=null;
@@ -899,34 +926,18 @@ from user u join record r on u.IDnumber=r.IDnumber group by auto_constellation o
         var time=(new Date()).toISOString().substring(0, 19).replace('T', ' ');//2015-07-23 11:26:00
         
         var sqlQuery="INSERT INTO "+db_m+"."+t1_login+" set ? ";
+        if(!req.query.username)
+            req.query.username=req.query.phonenumber;
         var post  = {
             username: req.query.username, 
             password: req.query.password,
             loginemail: req.query.email,
-            loginphone: req.query.phone,
-            loginlastname: req.query.lastname,
-            loginfirstname: req.query.firstname,
+            loginphone: req.query.phonenumber,
+            loginname: req.query.name,
+            //loginfirstname: req.query.firstname,
         };
         post.registertime=time;
         post.updatetime=time;
-
-        /*
-        var sqlInsertNeiRong= "\'"+username+"\', "+"\'"+password+"\'";
-        sqlInsertNeiRong+=",";
-        if(email)
-            sqlInsertNeiRong+=" \'"+email+"\'";
-        sqlInsertNeiRong+=",";
-        if(phone)
-            sqlInsertNeiRong+=" \'"+phone+"\'";
-        sqlInsertNeiRong+=",";
-        if(lastname)
-            sqlInsertNeiRong+=" \'"+lastname+"\'";
-        sqlInsertNeiRong+=",";
-        if(firstname)
-            sqlInsertNeiRong+=" \'"+firstname+"\'";
-        */
-
-        //sqlQuery="INSERT INTO "+db_m+"."+t1_login+" l VALUES("+sqlInsertNeiRong+");";
 
         console.log("authenticate Query: ",sqlQuery);
     
@@ -939,22 +950,17 @@ from user u join record r on u.IDnumber=r.IDnumber group by auto_constellation o
                     console.log("mylog : register connect error");
                     jsonWrite(res, err.code);
                     if (err.code === 'PROTOCOL_CONNECTION_LOST') {
-                        //handle disconnect
                     } else if (err.code === 'ER_DUP_ENTRY') {
                         console.log("mylog : fb ER_DUP_ENTRY detected");
-                        // release connection created with pool.getConnection
                         if (connection) connection.release();
-                        // req.flash to set flashdata using connect-flash
-                        //jsonWrite(res, err.code);
-                        //return done(err, false, req.flash('loginMessage', 'Facebook ID registered to another user.')); 
                     } 
                 }
-                else { //continue 
-                        jsonWrite(res, 'success insert');
+                else {jsonWrite(res, 'success insert');
                 }
             });
         });
     },
+    //m/smsvalidation?phonenumber=15771792383&msg=065
     smsvalidation:function (req, res, next) {  
         var phonenumber= req.query.phonenumber;
         var msg="您的验证码是: "+req.query.message + "【iPZmall】";
@@ -964,42 +970,91 @@ from user u join record r on u.IDnumber=r.IDnumber group by auto_constellation o
             jsonWrite(res,'sms sent');
         })
     },
-
+    //SELECT EXISTS(SELECT 1 FROM table1 WHERE ...)
+    //m/usernameexist?username=test
+    usernameexist:function (req, res, next) {  
+        var username = req.query.username;
+        var sqlQuery="SELECT EXISTS(SELECT 1 FROM "+db_m+"."+t1_login+" l where username=\'"+username+"\' limit 1) as exist;";
+    
+        pool.getConnection(function(err, connection) {
+            if (err) throw err;
+            connection.query(sqlQuery, username, function(err, result) {
+                jsonWrite(res, result);
+                connection.release();
+            });
+        });
+    },
+    phonenumberexist:function (req, res, next) {  
+        var phonenumber = req.query.phonenumber;
+        var sqlQuery="SELECT EXISTS(SELECT 1 FROM "+db_m+"."+t1_login+" l where loginphone=\'"+phonenumber+"\' limit 1) as exist;";
+    
+        pool.getConnection(function(err, connection) {
+            if (err) throw err;
+            connection.query(sqlQuery, function(err, result) {
+                jsonWrite(res, result);
+                connection.release();
+            });
+        });
+    },
+    //m/link?username=test&id=12345678
     link:function (req, res, next) {  
         var username=req.query.username;
         var id=req.query.id;
         var time=(new Date()).toISOString().substring(0, 19).replace('T', ' ');//2015-07-23 11:26:00
         
-        var post={
+        var profilePost={
             username: username,
             updatetime: time
         }
+        var loginPost={
+            IDnumber: id,
+            updatetime: time,
+            linktime:time
+        }
 
-        var sqlQuery="UPDATE "+db_m+"."+t1_user+" SET ? WHERE IDnumber= \'"+id+"\'";
+        var updateProfile="UPDATE "+db_m+"."+t1_user+" SET ? WHERE IDnumber= \'"+id+"\'";
+        var updateLogin="UPDATE "+db_m+"."+t1_login+" SET ? WHERE username= \'"+username+"\'";
 
-        pool.getConnection(function(err, connection) {
-            if (err) throw err;
-            console.log("link");
-
-            connection.query(sqlQuery, post, function(err, result) {
+        pool.getConnection(function(error, connection) {
+            var write="";
+            if (error) throw error;
+            console.log("link-updating profile");
+            //update profile
+            connection.query(updateProfile, profilePost, function(err, result) {
                 if (err) {
-                    console.log("mylog : link connect error");
-                    jsonWrite(res, err.code);
+                    console.log("mylog : profile link-update error");
+                    write+="-Profile link-update err.code: "+err.code+"-";
                     if (err.code === 'PROTOCOL_CONNECTION_LOST') {
-                        //handle disconnect
                     } else if (err.code === 'ER_DUP_ENTRY') {
-                        console.log("mylog :ER_DUP_ENTRY detected");
-                        // release connection created with pool.getConnection
+                        console.log("link: profile update : ER_DUP_ENTRY detected");
                         if (connection) connection.release();
                     } else throw err;
-                }else {
-                    jsonWrite(res, 'success linked');
+                }else { //continue 
+                        write+="-Profile link-update success-";
+                }
+            });
+
+            console.log("link-updating login");
+            //update login
+            connection.query(updateLogin, loginPost, function(err2, result) {
+                if (err2) {
+                    console.log("mylog : login link-update error");
+                    write+="-Login link-update err.code: "+err2.code+"-";
+                    jsonWrite(res, write);
+                    if (err2.code === 'PROTOCOL_CONNECTION_LOST') {
+                    } else if (err2.code === 'ER_DUP_ENTRY') {
+                        console.log("login link-update : ER_DUP_ENTRY detected");
+                        if (connection) connection.release();
+                    } else throw err2;
+                }else { //continue 
+                        write+="-Login link-update success-";
+                        jsonWrite(res, write);
                 }
             });
         });
     },
-
     //updatalogin&profile
+    //m/update?username=test&name=test&gender=test&IDtype=test&IDnumber=test&birthday=test&age=test&constellation=test&zodiac=test&country=test&contry_en=test&province=test&phonenumber=test&email=test
     update:function (req, res, next) {
         for (var i in req.query){
             if(req.query[i]=='')
@@ -1024,8 +1079,8 @@ from user u join record r on u.IDnumber=r.IDnumber group by auto_constellation o
         email=req.query.email;*/
 
         //profile query
-        var updateProfile="INSERT INTO "+db_m+"."+t1_user+" set ? ";
-        var post_profile  = {
+        var updateProfile="UPDATE "+db_m+"."+t1_user+" set ? WHERE username= \'"+req.query.username+"\'";
+        var profilePost  = {
             username: req.query.username,
             name: req.query.name,
             gender: req.query.gender,
@@ -1048,7 +1103,7 @@ from user u join record r on u.IDnumber=r.IDnumber group by auto_constellation o
 
         //login query     
         var updateLogin="UPDATE "+db_m+"."+t1_login+" SET ? WHERE username= \'"+req.query.username+"\'";               
-        var post_login = {};
+        var loginPost = {};
         for (var i in req.query){
             if(req.query[i]!=''){
                 ii='';
@@ -1060,15 +1115,15 @@ from user u join record r on u.IDnumber=r.IDnumber group by auto_constellation o
                     ii='loginemail';
                 if(i=='phone')
                     ii='loginphone';
-                if(i=='lastname')
-                    ii='loginlastname';
+                if(i=='name')
+                    ii='loginname';
                 if(i=='firstname')
                     ii='loginfirstname';          
                 if(ii!='')
-                    post_login[ii]=req.query[i];                
+                    loginPost[ii]=req.query[i];                
             }
         }
-        post_login.updatetime=time;
+        loginPost.updatetime=time;
         
 
         pool.getConnection(function(error, connection) {
@@ -1076,7 +1131,7 @@ from user u join record r on u.IDnumber=r.IDnumber group by auto_constellation o
             if (error) throw error;
             console.log("updating profile");
             //update profile
-            connection.query(updateProfile, post_profile, function(err, result) {
+            connection.query(updateProfile, profilePost, function(err, result) {
                 if (err) {
                     console.log("mylog : profile update error");
                     write+="-Profile update err.code: "+err.code+"-";
@@ -1092,16 +1147,16 @@ from user u join record r on u.IDnumber=r.IDnumber group by auto_constellation o
 
             console.log("updating login");
             //update login
-            connection.query(updateLogin, post_login, function(err2, result) {
-                if (err2) {
+            connection.query(updateLogin, loginPost, function(err, result) {
+                if (err) {
                     console.log("mylog : login update error");
                     write+="-Login update err.code: "+err.code+"-";
                     jsonWrite(res, write);
-                    if (err2.code === 'PROTOCOL_CONNECTION_LOST') {
-                    } else if (err2.code === 'ER_DUP_ENTRY') {
+                    if (err.code === 'PROTOCOL_CONNECTION_LOST') {
+                    } else if (err.code === 'ER_DUP_ENTRY') {
                         console.log("login update : ER_DUP_ENTRY detected");
                         if (connection) connection.release();
-                    } else throw err2;
+                    } else throw err;
                 }else { //continue 
                         write+="-Login update success-";
                         jsonWrite(res, write);
@@ -1167,6 +1222,6 @@ where
     #and u.auto_zodiac=temp.zodiac 
 order by avgRecord
 */
-
-
 };
+
+
